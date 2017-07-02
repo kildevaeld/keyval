@@ -14,7 +14,10 @@
 package cmd
 
 import (
+	"os"
+
 	"github.com/Sirupsen/logrus"
+	system "github.com/kildevaeld/go-system"
 	"github.com/kildevaeld/keyval"
 	"github.com/kildevaeld/keyval/http"
 	"github.com/spf13/cobra"
@@ -55,7 +58,7 @@ func httpImpl(cmd *cobra.Command, args []string) error {
 
 	options := http.ServerOptions{
 		WorkQueue:  viper.GetInt("http.work_queue"),
-		ScriptPath: interpolate(viper.GetString("http.script_path")),
+		ScriptPath: system.Environ(os.Environ()).Expand(viper.GetString("http.script_path")),
 	}
 
 	if server, err = http.NewServer(kv, options); err != nil {

@@ -3,7 +3,6 @@ package cmd
 import (
 	"fmt"
 	"os"
-	"regexp"
 
 	"github.com/kildevaeld/keyval"
 	"github.com/spf13/viper"
@@ -21,15 +20,4 @@ func getKeyValueStore() (keyval.KeyValStore, error) {
 
 	return keyval.Store(t, i)
 
-}
-
-var reg = regexp.MustCompile("\\$([a-zA-Z_]+)")
-
-func interpolate(str string) string {
-	return reg.ReplaceAllStringFunc(str, func(str string) string {
-		if str == "$KV_CONFIG_PATH" {
-			return viper.GetString("config_path")
-		}
-		return os.Getenv(str[1:])
-	})
 }

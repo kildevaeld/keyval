@@ -23,6 +23,7 @@ import (
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 var cfgFile string
@@ -53,7 +54,7 @@ func init() {
 	// Here you will define your flags and configuration settings.
 	// Cobra supports persistent flags, which, if defined here,
 	// will be global for your application.
-	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.kv.yaml)")
+	RootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/config/kv.yaml)")
 
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
@@ -75,8 +76,8 @@ func initConfig() {
 		}
 
 		// Search config in home directory with name ".kv" (without extension).
-		viper.AddConfigPath(home)
-		viper.SetConfigName(".kv")
+		viper.AddConfigPath(filepath.Join(home, ".config", "kv"))
+		viper.SetConfigName("kv")
 		viper.Set("config_path", filepath.Join(home, ".config", "kv"))
 	}
 	viper.SetEnvPrefix("KV_")
@@ -86,6 +87,7 @@ func initConfig() {
 		logrus.SetLevel(logrus.DebugLevel)
 	}
 
+	logrus.SetFormatter(new(prefixed.TextFormatter))
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
 		logrus.Debugf("Using config file: %s", viper.ConfigFileUsed())

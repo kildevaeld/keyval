@@ -95,6 +95,18 @@ func (f *filesystem) GetBytes(key []byte) ([]byte, error) {
 	return ioutil.ReadAll(file)
 }
 
+func (f *filesystem) State(key []byte) (keyval.ValueInfo, error) {
+	info, err := os.Stat(f.key(key))
+	if err != nil {
+		return keyval.ValueInfo{}, keyval.ErrNotFound
+	}
+
+	return keyval.ValueInfo{
+		Size: info.Size(),
+		Hash: []byte("rapper"),
+	}, nil
+}
+
 func (f *filesystem) key(key []byte) string {
 	if f.hashKeys != "" {
 		var hash hash.Hash

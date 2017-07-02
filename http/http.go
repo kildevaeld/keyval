@@ -21,11 +21,13 @@ var FileField = "file"
 type ServerOptions struct {
 	ScriptPath string
 	WorkQueue  int
+	MaxAge     int
 }
 
 type HttpServer struct {
-	v  *valse.Server
-	kv keyval.KeyValStore
+	v       *valse.Server
+	kv      keyval.KeyValStore
+	options ServerOptions
 }
 
 func (s *HttpServer) Listen(addr string) error {
@@ -78,20 +80,20 @@ func (s *HttpServer) init(options ServerOptions) error {
 }
 
 func (s *HttpServer) handleCheck(ctx *valse.Context) error {
-
+	fmt.Printf("CHECK\n")
 	name := ctx.UserValue("path").(string)
 	if name == "/" {
 		return strong.NewHTTPError(strong.StatusBadRequest)
 	}
 
-	if !s.kv.Has([]byte(name)) {
+	if !s.kv.Has([]byte(name[1:])) {
 		ctx.SetStatusCode(strong.StatusOK)
 	} else {
 		ctx.SetStatusCode(strong.StatusNotFound)
 	}
 
 	if i, ok := s.kv.(keyval.ResourceStore); ok {
-		stat, err := i.State([]byte(name))
+		stat, err := i.State([]byte(name[1:]))
 		if err != nil {
 			return err
 		}
@@ -136,11 +138,12 @@ func (s *HttpServer) handleGet(ctx *valse.Context) error {
 	}
 
 	if i, ok := s.kv.(keyval.ResourceStore); ok {
-		stat, err := i.State([]byte(name))
+		stat, err := i.State([]byte(name[1:]))
 		if err != nil {
 			return err
 		}
-		ctx.Response.Header.SetContentLength(int(stat.Size))
+		size := int(stat.Size)
+		ctx.Response.Header.SetContentLength(size)
 		ctx.Response.Header.Set("ETag", fmt.Sprintf("\"%x\"", stat.Hash))
 	}
 
@@ -162,6 +165,10 @@ func (s *HttpServer) handleGet(ctx *valse.Context) error {
 	if m, e = mime.DetectContentType(bs[:]); e != nil {
 		return e
 	}
+	if s.options.MaxAge > 0 {
+		ctx.Response.Header.Set("Cache-Control", fmt.Sprintf("max-age=%d", s.options.MaxAge))
+	}
+
 	ctx.Response.Header.Set(strong.HeaderContentType, m)
 	ctx.Write(bs[:i])
 
@@ -175,7 +182,7 @@ func (s *HttpServer) handleGet(ctx *valse.Context) error {
 
 func NewServer(kv keyval.KeyValStore, options ServerOptions) (*HttpServer, error) {
 
-	s := &HttpServer{v: valse.New(), kv: kv}
+	s := &HttpServer{v: valse.New(), kv: kv, options: options}
 
 	err := s.init(options)
 

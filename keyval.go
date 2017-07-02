@@ -31,7 +31,7 @@ type KeyValStore interface {
 
 type ResourceStore interface {
 	KeyValStore
-	OriginalUrl(key []byte) string
+	//OriginalUrl(key []byte) string
 	State(key []byte) (ValueInfo, error)
 }
 
