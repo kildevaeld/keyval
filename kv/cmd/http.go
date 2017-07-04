@@ -16,10 +16,11 @@ package cmd
 import (
 	"os"
 
-	"github.com/Sirupsen/logrus"
 	system "github.com/kildevaeld/go-system"
 	"github.com/kildevaeld/keyval"
 	"github.com/kildevaeld/keyval/http"
+	"github.com/sirupsen/logrus"
+
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 )

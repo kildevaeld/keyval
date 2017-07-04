@@ -12,9 +12,9 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/Sirupsen/logrus"
 	system "github.com/kildevaeld/go-system"
 	"github.com/kildevaeld/keyval"
+	"github.com/sirupsen/logrus"
 )
 
 func hasParent(path string) bool {

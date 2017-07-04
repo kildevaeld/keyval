@@ -28,10 +28,16 @@ type HttpServer struct {
 	v       *valse.Server
 	kv      keyval.KeyValStore
 	options ServerOptions
+	l       *luam.LuaValse
 }
 
 func (s *HttpServer) Listen(addr string) error {
 	return s.v.Listen(addr)
+}
+
+func (s *HttpServer) Close() error {
+	s.l.Close()
+	return nil
 }
 
 func (s *HttpServer) initLua() *lua.State {
@@ -55,6 +61,9 @@ func (s *HttpServer) initLua() *lua.State {
 				}, nil
 			},
 		},
+		"set": func(key, val string) {
+			s.kv.SetBytes([]byte(key), []byte(val))
+		},
 	})
 	L.SetGlobal("kv")
 
@@ -63,24 +72,22 @@ func (s *HttpServer) initLua() *lua.State {
 
 func (s *HttpServer) init(options ServerOptions) error {
 
-	//s.v.Use(middlewares.NewWithNameAndLogrus("http", logrus.WithField("", "")))
-	if options.ScriptPath != "" {
-		s.v.Use(luam.Lua(luam.LuaOptions{
-			Path:       options.ScriptPath,
-			LuaFactory: s.initLua,
-			WorkQueue:  options.WorkQueue,
-		}))
-	}
+	s.l = luam.New(s.v, luam.LuaOptions{
+		WorkQueue:  options.WorkQueue,
+		Path:       options.ScriptPath,
+		LuaFactory: s.initLua,
+	})
 
-	s.v.Get("/*path", s.handleGet)
-	s.v.Head("/*path", s.handleCheck)
-	s.v.Post("/*path", s.handleSet)
+	s.l.Open()
+	s.v.Get("/store/*path", s.handleGet)
+	s.v.Head("/store/*path", s.handleCheck)
+	s.v.Post("/store/*path", s.handleSet)
 
 	return nil
 }
 
 func (s *HttpServer) handleCheck(ctx *valse.Context) error {
-	fmt.Printf("CHECK\n")
+
 	name := ctx.UserValue("path").(string)
 	if name == "/" {
 		return strong.NewHTTPError(strong.StatusBadRequest)
