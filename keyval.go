@@ -5,18 +5,20 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"time"
 
 	"github.com/mitchellh/mapstructure"
 )
 
 var (
 	ErrNotFound = errors.New("not found")
+	ErrStopIter = errors.New("stop iterater")
 )
 
-type ValueInfo struct {
+/*type ValueInfo struct {
 	Size int64
 	Hash []byte
-}
+}*/
 
 type KeyValStoreFactory func(options interface{}) (KeyValStore, error)
 
@@ -29,10 +31,17 @@ type KeyValStore interface {
 	GetBytes(key []byte) ([]byte, error)
 }
 
-type ResourceStore interface {
-	KeyValStore
-	//OriginalUrl(key []byte) string
-	State(key []byte) (ValueInfo, error)
+type Stat interface {
+	Size() int64
+	Mtime() time.Time
+	Ctime() time.Time
+	Hash() []byte
+	IsDir() bool
+}
+
+type KeyValMetaStore interface {
+	Stat([]byte) (Stat, error)
+	List(prefix []byte, fn func(key []byte, meta Stat) error) error
 }
 
 var _store map[string]KeyValStoreFactory
@@ -65,4 +74,34 @@ func GetOptions(options interface{}, out interface{}) error {
 	}
 
 	return err
+}
+
+type stat_impl struct {
+	size  int64
+	hash  []byte
+	ctime time.Time
+	mtime time.Time
+	isDir bool
+}
+
+func (s *stat_impl) Size() int64 {
+	return s.size
+}
+func (s *stat_impl) Mtime() time.Time {
+	return s.mtime
+}
+func (s *stat_impl) Ctime() time.Time {
+	return s.ctime
+}
+func (s *stat_impl) Hash() []byte {
+	return s.hash
+}
+func (s *stat_impl) IsDir() bool {
+	return s.isDir
+}
+
+func NewState(s int64, h []byte, c time.Time, m time.Time) Stat {
+	return &stat_impl{
+		s, h, c, m, false,
+	}
 }

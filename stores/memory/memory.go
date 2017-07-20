@@ -5,6 +5,7 @@ import (
 	"io"
 	"io/ioutil"
 
+	"github.com/gobwas/glob"
 	"github.com/kildevaeld/keyval"
 )
 
@@ -50,10 +51,30 @@ func (m *memory) GetBytes(key []byte) ([]byte, error) {
 	return bs, nil
 }
 
+func (m *memory) List(prefix []byte, fn func(key []byte, r io.ReadCloser) error) error {
+	g := glob.MustCompile(string(prefix))
+	for k, v := range m.mem {
+		if g.Match(string(k)) {
+			if err := fn([]byte(k), NewReader(v)); err != nil {
+				if err == keyval.ErrStopIter {
+					err = nil
+				}
+				return err
+			}
+		}
+
+	}
+	return nil
+}
+
 func init() {
 	keyval.Register("memory", func(options interface{}) (keyval.KeyValStore, error) {
 		return &memory{
 			mem: make(map[string][]byte),
 		}, nil
 	})
+}
+
+func NewReader(bs []byte) io.ReadCloser {
+	return ioutil.NopCloser(bytes.NewReader(bs))
 }

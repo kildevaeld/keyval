@@ -9,6 +9,7 @@ import (
 	"github.com/aarzilli/golua/lua"
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/kildevaeld/bproxy/mime"
+	"github.com/kildevaeld/goluaext"
 	"github.com/kildevaeld/keyval"
 	"github.com/kildevaeld/strong"
 	"github.com/kildevaeld/valse"
@@ -41,7 +42,7 @@ func (s *HttpServer) Close() error {
 }
 
 func (s *HttpServer) initLua() *lua.State {
-	L := luar.Init()
+	L := goluaext.Init()
 	L.OpenLibs()
 
 	luar.GoToLua(L, luar.Map{
@@ -72,16 +73,21 @@ func (s *HttpServer) initLua() *lua.State {
 
 func (s *HttpServer) init(options ServerOptions) error {
 
-	s.l = luam.New(s.v, luam.LuaOptions{
-		WorkQueue:  options.WorkQueue,
-		Path:       options.ScriptPath,
-		LuaFactory: s.initLua,
-	})
+	/*
+		s.l = luam.New(s.v, luam.LuaOptions{
+			WorkQueue:  options.WorkQueue,
+			Path:       options.ScriptPath,
+			LuaFactory: s.initLua,
+		})
 
-	s.l.Open()
+		s.l.Open()*/
 	s.v.Get("/store/*path", s.handleGet)
 	s.v.Head("/store/*path", s.handleCheck)
 	s.v.Post("/store/*path", s.handleSet)
+
+	/*if kv, ok := s.kv.(keyval.KeyValMetaStore); ok {
+		s.v.Get("/store/*p")
+	}*/
 
 	return nil
 }
@@ -99,12 +105,12 @@ func (s *HttpServer) handleCheck(ctx *valse.Context) error {
 		ctx.SetStatusCode(strong.StatusNotFound)
 	}
 
-	if i, ok := s.kv.(keyval.ResourceStore); ok {
-		stat, err := i.State([]byte(name[1:]))
+	if i, ok := s.kv.(keyval.KeyValMetaStore); ok {
+		stat, err := i.Stat([]byte(name[1:]))
 		if err != nil {
 			return err
 		}
-		ctx.Response.Header.SetContentLength(int(stat.Size))
+		ctx.Response.Header.SetContentLength(int(stat.Size()))
 	}
 
 	return nil
@@ -140,18 +146,21 @@ func (s *HttpServer) handleSet(ctx *valse.Context) error {
 func (s *HttpServer) handleGet(ctx *valse.Context) error {
 
 	name := ctx.UserValue("path").(string)
-	if name == "/" {
+	/*if name == "/" {
 		return strong.NewHTTPError(strong.StatusBadRequest)
-	}
+	}*/
 
-	if i, ok := s.kv.(keyval.ResourceStore); ok {
-		stat, err := i.State([]byte(name[1:]))
+	if i, ok := s.kv.(keyval.KeyValMetaStore); ok {
+		stat, err := i.Stat([]byte(name[1:]))
 		if err != nil {
 			return err
 		}
-		size := int(stat.Size)
+
+		size := int(stat.Size())
 		ctx.Response.Header.SetContentLength(size)
 		ctx.Response.Header.Set("ETag", fmt.Sprintf("\"%x\"", stat.Hash))
+
+		return nil
 	}
 
 	file, err := s.kv.Get([]byte(name[1:]))

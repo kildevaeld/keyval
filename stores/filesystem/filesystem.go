@@ -12,9 +12,15 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.uber.org/zap"
+
 	system "github.com/kildevaeld/go-system"
 	"github.com/kildevaeld/keyval"
-	"github.com/sirupsen/logrus"
+	"github.com/vmihailenco/msgpack"
+)
+
+var (
+	metaKeyName = "__meta"
 )
 
 func hasParent(path string) bool {
@@ -30,6 +36,7 @@ type FileSystemOptions struct {
 type filesystem struct {
 	path     string
 	hashKeys string
+	info     map[string]*Info
 }
 
 func (f *filesystem) mkDir(key string) error {
@@ -40,7 +47,7 @@ func (f *filesystem) mkDir(key string) error {
 	parent := filepath.Dir(key)
 
 	if _, err := os.Stat(parent); err != nil {
-		logrus.Debugf("Create directory: %s", parent)
+		zap.L().Sugar().Debugf("Create directory: %s", parent)
 		return os.MkdirAll(parent, 0777)
 	}
 	return nil
@@ -61,6 +68,19 @@ func (f *filesystem) Set(key []byte, reader io.Reader) error {
 	}
 
 	_, err = io.Copy(file, reader)
+
+	if err != nil {
+		s, e := os.Stat(str)
+		if e != nil {
+			return e
+		}
+		return f.add(string(key), &Info{
+			size:  s.Size(),
+			ctime: s.ModTime(),
+			mtime: s.ModTime(),
+			hash:  nil,
+		})
+	}
 
 	return err
 }
@@ -95,16 +115,37 @@ func (f *filesystem) GetBytes(key []byte) ([]byte, error) {
 	return ioutil.ReadAll(file)
 }
 
-func (f *filesystem) State(key []byte) (keyval.ValueInfo, error) {
+func (f *filesystem) Stat(key []byte) (keyval.Stat, error) {
+
 	info, err := os.Stat(f.key(key))
 	if err != nil {
-		return keyval.ValueInfo{}, keyval.ErrNotFound
+		if err != os.ErrNotExist {
+			return nil, keyval.ErrNotFound
+		}
+		return nil, err
+	} else if info.IsDir() {
+		return &Info{
+			size:  info.Size(),
+			mtime: info.ModTime(),
+			isDir: true,
+		}, nil
 	}
 
-	return keyval.ValueInfo{
-		Size: info.Size(),
-		Hash: []byte("rapper"),
-	}, nil
+	return f.info[string(key)], nil
+}
+
+func (f *filesystem) List(prefix []byte, fn func(key []byte, meta keyval.Stat) error) error {
+	path := f.key(prefix)
+	files, err := filepath.Glob(string(path))
+	if err != nil {
+		return err
+	}
+
+	for _, k := range files {
+		//f,e := os.Stat(filepath.Join(string(path), k))
+	}
+
+	return nil
 }
 
 func (f *filesystem) key(key []byte) string {
@@ -145,7 +186,40 @@ func (f *filesystem) init() (*filesystem, error) {
 		return nil, err
 	}
 
+	f.load()
+
 	return f, nil
+}
+
+func (f *filesystem) load() error {
+	bs, err := ioutil.ReadFile(filepath.Join(f.path, metaKeyName))
+	if err != nil {
+		return nil
+	}
+
+	if err := msgpack.Unmarshal(bs, &f.info); err != nil {
+		return nil
+	}
+
+	return nil
+}
+
+func (f *filesystem) save() error {
+	var (
+		bs  []byte
+		err error
+	)
+	if bs, err = msgpack.Marshal(f.info); err != nil {
+		return err
+	}
+
+	return ioutil.WriteFile(filepath.Join(f.path, metaKeyName), bs, 0666)
+
+}
+
+func (f *filesystem) add(p string, v *Info) error {
+	f.info[p] = v
+	return f.save()
 }
 
 func init() {
@@ -174,6 +248,7 @@ func init() {
 		f := &filesystem{
 			path:     o.Path,
 			hashKeys: o.HashKeys,
+			info:     make(map[string]*Info),
 		}
 
 		return f.init()

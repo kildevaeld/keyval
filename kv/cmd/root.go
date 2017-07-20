@@ -18,12 +18,12 @@ import (
 	"os"
 	"path/filepath"
 
+	"go.uber.org/zap"
+
 	system "github.com/kildevaeld/go-system"
 	homedir "github.com/mitchellh/go-homedir"
-	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
-	prefixed "github.com/x-cray/logrus-prefixed-formatter"
 )
 
 var cfgFile string
@@ -67,6 +67,7 @@ func initConfig() {
 	if cfgFile != "" {
 		// Use config file from the flag.
 		viper.SetConfigFile(cfgFile)
+
 	} else {
 		// Find home directory.
 		home, err := homedir.Dir()
@@ -84,13 +85,15 @@ func initConfig() {
 	viper.AutomaticEnv() // read in environment variables that match
 
 	if debugFlag {
-		logrus.SetLevel(logrus.DebugLevel)
+		//zap.SetLevel(logrus.DebugLevel)
+		l, _ := zap.NewDevelopment()
+		zap.ReplaceGlobals(l)
 	}
 
-	logrus.SetFormatter(new(prefixed.TextFormatter))
+	//logrus.SetFormatter(new(prefixed.TextFormatter))
 	// If a config file is found, read it in.
 	if err := viper.ReadInConfig(); err == nil {
-		logrus.Debugf("Using config file: %s", viper.ConfigFileUsed())
+		zap.L().Sugar().Debugf("Using config file: %s", viper.ConfigFileUsed())
 	}
 
 	configPath := viper.GetString("config_path")

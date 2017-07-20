@@ -1,11 +1,6 @@
 {
-    "key": "secret",
-    "algo": "HS256",
-    "redis": {
-        "host": "127.0.0.1",
-        "port": 6379
-    },
-    "mongo": {
-        "host": "127.0.0.1"
+    "store.type": "filesystem",
+    "store.options": {
+        "path": "./test"
     }
 }

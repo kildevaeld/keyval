@@ -16,10 +16,11 @@ package cmd
 import (
 	"os"
 
+	"go.uber.org/zap"
+
 	system "github.com/kildevaeld/go-system"
 	"github.com/kildevaeld/keyval"
 	"github.com/kildevaeld/keyval/http"
-	"github.com/sirupsen/logrus"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
@@ -65,6 +66,6 @@ func httpImpl(cmd *cobra.Command, args []string) error {
 	if server, err = http.NewServer(kv, options); err != nil {
 		return err
 	}
-	logrus.Infof("kv:http started on %s", httpAddressFlag)
+	zap.L().Sugar().Infof("kv:http started on %s", httpAddressFlag)
 	return server.Listen(httpAddressFlag)
 }
