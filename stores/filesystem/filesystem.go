@@ -133,7 +133,7 @@ func (f *filesystem) Stat(key []byte) (keyval.Stat, error) {
 
 	return f.info[string(key)], nil
 }
-
+/*
 func (f *filesystem) List(prefix []byte, fn func(key []byte, meta keyval.Stat) error) error {
 	path := f.key(prefix)
 	files, err := filepath.Glob(string(path))
@@ -146,7 +146,7 @@ func (f *filesystem) List(prefix []byte, fn func(key []byte, meta keyval.Stat) e
 	}
 
 	return nil
-}
+}*/
 
 func (f *filesystem) key(key []byte) string {
 	if f.hashKeys != "" {
